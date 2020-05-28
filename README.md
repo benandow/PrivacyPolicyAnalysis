@@ -5,9 +5,9 @@ This repository hosts the source code for the PoliCheck tool. PoliCheck analyzes
 
 # Instructions
 
-* Place the plaintext privacy policies in /ext/plaintext\_policies
+* Place the plaintext privacy policies in /ext/plaintext\_policies. Note that if you need to process HTML privacy policies, I recommend running a preprocessing step before to convert the policies to plaintext (e.g., https://github.com/benandow/HtmlToPlaintext).
 
-* Insert data flows in /ext/data/flows.csv. Example file included from data used in paper.
+* Insert a CSV representing the data flows into /ext/data/flows.csv. An example file is included from the data used within paper (/ext/data/flows.csv).
 
 * Build the docker image: $ ./build.sh
 
