@@ -2715,9 +2715,9 @@
 	<node term="heading">
 		<synonym term="direction"/>
 	</node>
-	<node term="geographic location">
+	<node term="geographical location">
 		<synonym term="geographic information"/>
-		<synonym term="geographical location"/>
+		<synonym term="geographic location"/>
 		<synonym term="network location information"/>
 		<synonym term="physical location"/>
 		<synonym term="location of mobile device"/>
@@ -3950,6 +3950,7 @@
 		<synonym term="ad service company"/>
 	</node>
 	<node term="crashlytics">
+		<synonym term="crashlytic"/>
 		<synonym term="crashlytics.com"/>
 		<synonym term="crashlytics / fabrics"/>
 		<synonym term="settings.crashlytics.com"/>

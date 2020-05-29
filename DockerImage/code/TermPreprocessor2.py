@@ -4,7 +4,7 @@ from __future__ import unicode_literals
 from lxml import etree
 import re
 
-def loadAnnotations(filename='data/handbuiltSynonyms.xml'):
+def loadAnnotations(filename='/ext/data/synonyms.xml'):
 	def getTerm(node):
 		return node.get(u'term')
 
@@ -53,23 +53,23 @@ def isSafeSubstitution(term): #Don't sub if there's a chance there are multiple 
 def isSimpleUsageInfoTerm(term):
 	if not isSafeSubstitution(term):
 		return False
-	return True if re.search(r'^(information|data|datum|record|detail)\s+(about|regard|of)\s+(your\s+)?(usage|use|uses|utilzation|activity)\s+(of|on)\s+.*$', term) else False
+	return True if re.search(r'^(information|data|datum|record|detail)\s+(about|regard|of|relate\sto)(\s+how)?\s+(you(r)?\s+)?(usage|use|uses|utilzation|activity)\s+(of|on|our)\s+.*$', term) else False
 
 def isSimpleNonPersonalInfoTerm(term):
 	if not isSafeSubstitution(term):
 		return False
 	if re.search(r'^(non-(pii|personally(\-|\s)identif(y|iable)\s(information|data|datum|detail)))$', term):
 		return True
-	return True if re.search(r'\b((information|data|datum|detail)\s.*\snot\sidentify\s(you|user|individual))\b', term) else False
+	return True if re.search(r'\b((information|data|datum|detail)\s.*\snot\sidentify\s(you|user|person|individual))\b', term) else False
 
-def isSimplePersonalInfoTerm(term):
+def isSimplePersonallyIdentifiableInfoTerm(term):
 	if not isSafeSubstitution(term):
 		return False
-	if re.search(r'^((information|data|datum|detail)\sabout\syou)$', term):
-		return True
+#	if re.search(r'^((information|data|datum|detail)\sabout\syou)$', term):
+#		return True
 	if re.search(r'^(pii|personally(\-|\s)identif(y|iable)\s(information|data|datum|detail))$', term):
 		return True
-	return True if re.search(r'\b((information|data|datum|detail)\s.*\sidentify\s(you|user|individual))\b', term) else False
+	return True if re.search(r'\b((information|data|datum|detail)\s.*\sidentify\s(you(rself)?|user|person|individual))\b', term) else False
 
 def isSimpleIpAddr(term):
 	if not isSafeSubstitution(term):
@@ -83,7 +83,7 @@ def simpleSynonymSub(term):
 	if isSimpleNonPersonalInfoTerm(term):
 		term = u'non-personally identifiable information'
 #		term = u'non-personally identifiable information'
-	elif isSimplePersonalInfoTerm(term):
+	elif isSimplePersonallyIdentifiableInfoTerm(term):
 		term = u'personally identifiable information'
 #		term = u'personally identifiable information'
 	elif isSimpleIpAddr(term):
@@ -126,16 +126,18 @@ def cleanupUnicodeErrors(term):
 	t = re.sub(u'\u037e', u';', t)
 	return t
 
+
 def commonTermSubstitutions(term):
 	# third-party --> third party
 	term = re.sub(r'\b(third\-party)\b', u'third party', term)
+	term = re.sub(r'\b(app(s)?|applications)\b', u'application', term)
 	term = re.sub(r'\b(wi\-fi)\b', u'wifi', term)
 	term = re.sub(r'\b(e\-\s*mail)\b', u'email', term)
 	return fixWhitespace(term)
 
 def stripIrrelevantTerms(term):
 	pronRegex = re.compile(r'^(your|our|their|its|his|her|his(/|\s(or|and)\s)her)\b')
-	irrevRegex = re.compile(r'^(additional|also|available|basic|certain|general|important|limit(ed)?(\s(set|amount)\sof)?|more|most|necessary|only|optional|other|particular(ly)?|perhaps|possibl(e|y)|potential(ly)?|relate(d)?|relevant|require(d)?|select|similar|some(times)?|specific|variety\sof|various(\s(type|kind)(s)\sof)?)\b')
+	irrevRegex = re.compile(r'^(additional|also|available|when\snecessary|obviously|technically|typically|basic|especially|collectively|certain|general(ly)?|follow(ing)?|important|limit(ed)?(\s(set|amount)\sof)?|more|most|necessary|only|optional|other|particular(ly)?|perhaps|possibl(e|y)|potential(ly)?|relate(d)?|relevant|require(d)?|select|similar|some(times)?|specific|variety\sof|various(\s(type|kind)(s)\sof)?)\b(\s*,\s*)?')
 	while pronRegex.search(term) or irrevRegex.search(term):
 		term = fixWhitespace(pronRegex.sub(u'', term))
 		term = fixWhitespace(irrevRegex.sub(u'', term))
@@ -149,7 +151,44 @@ def subInformation(text):
 	text = re.sub(r'\b(info|datum|data)\b', u'information', text)
 	#this can happen when subbing data for information
 	return fixWhitespace(re.sub(r'\b(information(\s+information)+)\b', u'information', text))
-    
+
+
+def isFirstParty(package_name, dest_domain, privacy_policy):
+	# Get start of packagename com.benandow.policylint --> com.benandow
+	splitPackageName = package_name.split(u'.')
+	rPackageName = u'{}.{}'.format(splitPackageName[0], splitPackageName[1])
+
+	# Get root destination domain (reversed) (e.g., policylint.benandow.com --> com.benandow)
+	splitDestDom = dest_domain.split(u'.')
+	if len(splitDestDom) < 2:
+		return False
+	rDestDomRev = u'{}.{}'.format(splitDestDom[-1], splitDestDom[-2])
+	
+	# Check if root dest_domain (reversed) matches start of package_name
+	if rPackageName == rDestDomRev:
+		return True
+	
+	if privacy_policy is not None and type(privacy_policy) == str:
+		privacy_policy = privacy_policy.decode("utf-8")
+
+	# Check if root privacy_policy url (reversed) matches start of package name
+	if privacy_policy != u'NULL' and len(privacy_policy) > 0:
+		#Reverse root policy URL: https://www.benandow.com/privacy --> com.benandow
+		splitDom = re.sub(r'/.*$', '', re.sub(r'http(s)?://', u'', privacy_policy)).split(u'.')
+		rPolUrlRev = u'{}.{}'.format(splitDom[-1], splitDom[-2])
+		# Check if the root privacy policy url matches the destination domain..
+		if rPolUrlRev == rDestDomRev:
+			return True
+	return False
+
+def resolveUrl(url, packageName, policyUrl):
+	if isFirstParty(packageName, url, policyUrl):
+		return u'we'
+
+	if url in synonymDict:
+		return synonymDict[url]
+	return None
+
 def preprocess(term):
 	def subOrdinals(term):
 		term = re.sub(r'\b(1st)\b', u'first', term)
@@ -190,7 +229,7 @@ def preprocess(term):
 	term = subInformation(term)
 
 	term = getSynonym(term)
-	
+
 	return term
 
 def startsWithLetter(term):

@@ -359,6 +359,7 @@ class Consistency:
 				return (True, pol, None)
 		return (False, None, None)
 
+
 	@staticmethod
 	def checkStrict(policyStatements, flow):
 		def getNegativeContradiction(pol, flow, policyStatements):
@@ -381,7 +382,6 @@ class Consistency:
 			return (False, None, None)
 
 		# Exists a positive sentiment statement, does not exist a negative sentiment
-		#TODO How often do same sentence contradictions occur? We do not collect PII, except for your name. <we, name> should be ok...
 		consistencyResult = hasPositiveSentimentStatement(relP) and not hasNegativeSentimentStatement(relP)
 
 		if consistencyResult:

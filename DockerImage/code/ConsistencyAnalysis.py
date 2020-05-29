@@ -105,7 +105,7 @@ def shouldIgnoreSentence(s):
 	return False
 
 
-def loadPrivacyPolicyResults(filename, skillId, cdb, nlp, subsetNum):
+def loadPrivacyPolicyResults(filename, packageName, cdb, nlp, subsetNum):
 	if not os.path.isfile(filename):
 		return []
 	policy = []
@@ -145,34 +145,34 @@ def loadPrivacyPolicyResults(filename, skillId, cdb, nlp, subsetNum):
 					continue
 
 				if e not in con.Entity.ontology.nodes:#This should really never happen...
-					LOG_ERROR('SkippedPolicyEntities_{}.log'.format(subsetNum), e)
+					LOG_ERROR('/ext/SkippedPolicyEntities_{}.log'.format(subsetNum), e)
 					continue
 				ents.append(e)
 		else:
 			ents = [eproc]
 
 		if len(ents) == 0:
-			LOG_ERROR('SkippedPolicyEntities_{}.log'.format(subsetNum), eproc)
+			LOG_ERROR('/ext/SkippedPolicyEntities_{}.log'.format(subsetNum), eproc)
 			continue
 
 		if dproc in con.DataObject.ontology.nodes:
 			if dproc in con.DataObject.ontology.nodes and dproc != con.DataObject.root:
 				for e in ents:
 					cdb.insertPolicy(e, c, dproc)
-					cdb.insertAppPolicySentence(s, (e, c, dproc), skillId)
+					cdb.insertAppPolicySentence(s, (e, c, dproc), packageName)
 					policy.append((e, c, dproc, s))
 		else:
 			res = re.sub(r'\b(and|or|and/or|\/|&)\b', u'\n', dproc)
 			for d in res.split('\n'):
 				d = d.strip()
 				if d not in con.DataObject.ontology.nodes or d == con.DataObject.root:#This should really never happen...
-					LOG_ERROR('SkippedPolicyDataObjects_{}.log'.format(subsetNum), d)
+					LOG_ERROR('/ext/SkippedPolicyDataObjects_{}.log'.format(subsetNum), d)
 					continue
 				for e in ents:
 					if e == con.Entity.root:
 						continue
 					cdb.insertPolicy(e, c, d)
-					cdb.insertAppPolicySentence(s, (e, c, d), skillId)
+					cdb.insertAppPolicySentence(s, (e, c, d), packageName)
 					policy.append((e, c, d, s))
 
 	return policy
@@ -193,9 +193,9 @@ def main(argv):
 	progressFilename = os.path.join(ROOT_DIR, 'output/log_data/{}.log'.format(subsetNum))
 
 	cdb = conDB.ConsistencyDB(consistency_database_path)#'consistency_results.db'
-	con.init(dataOntologyFilename=u'/ext/data/data_ontology.pickle', entityOntologyFilename=u'/ext/data/entity_ontology.pickle')
+	con.init(dataOntologyFilename=u'data_ontology.pickle', entityOntologyFilename=u'entity_ontology.pickle')
 #	con.init_static()
-	nlp = spacy.load('NlpFinalModel')
+	nlp = spacy.load('/ext/NlpFinalModel')
 	cdb.createTables()
 	# Let's walk the policy directory now...
 	progress_file = codecs.open(progressFilename, 'a', 'utf-8')
@@ -209,6 +209,16 @@ def main(argv):
 		policy = [con.PolicyStatement(p) for p in set(policy) ]
 		flows = loadFlowResults('/ext/data/flows.csv', packageName, cdb, subsetNum)
 		print '\tLoaded {} policy statements for {}'.format(len(policy), packageName)
+
+
+		#PolicyLint Analysis...
+		policyContradictions = con.getContradictions(policy, packageName)
+		for (p0, p1), contradictionIndex in policyContradictions:
+			print p0,p1,contradictionIndex, packageName
+			print cdb.insertContradiction(contradictionIndex, packageName, p0.getTuple(), p1.getTuple())		
+		
+
+		#PoliCheck Analysis...
 		if len(flows) == 0:
 			LOG_ERROR('SkippedAppsNoFlows_{}.log'.format(subsetNum), packageName)
 			continue
@@ -228,7 +238,7 @@ def main(argv):
 						for c,cnum in contradictions[i]:
 							numContradictions += 1
 							cTuple = (c.entity.entity, c.action.action, c.data.data)
-							cdb.insertConsistencyData(flow.entity.entity, flow.data.data, packageName, pTuple, cTuple, cNum)
+							cdb.insertConsistencyData(flow.entity.entity, flow.data.data, packageName, pTuple, cTuple, cnum)
 					else:
 						cdb.insertConsistencyData(flow.entity.entity, flow.data.data, packageName, pTuple, None, -1)
 

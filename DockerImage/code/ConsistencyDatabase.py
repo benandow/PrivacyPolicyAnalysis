@@ -62,6 +62,16 @@ class ConsistencyDB:
 													UNIQUE(consistId, policyStatement, contradictingStatement, contradictionNum))""")
 
 
+		c.execute('DROP TABLE IF EXISTS Contradiction')
+		c.execute("""CREATE TABLE Contradiction (contrId INTEGER PRIMARY KEY,
+												contradictionId INTEGER NOT NULL,
+												appId TEXT NOT NULL,
+												policyId1 INTEGER NOT NULL,
+												policyId2 INTEGER NOT NULL,
+												FOREIGN KEY(policyId1) REFERENCES Policy(policyId),
+												FOREIGN KEY(policyId2) REFERENCES Policy(policyId),
+												UNIQUE(contradictionId, appId, policyId1, policyId2))""")
+
 
 		self.conn.commit()
 
@@ -151,3 +161,12 @@ class ConsistencyDB:
 
 	def getConsistencyDataKey(self, params):#TODO insert test case...
 		return self.getKeyFromTable('SELECT cdid FROM ConsistencyData WHERE consistId=? AND policyStatement=? AND contradictingStatement=?', params)
+
+
+	def insertContradiction(self, contradictionId, appId, policy1, policy2):
+		policy1 = self.getPolicyId(policy1) if policy1 is not None else None
+		policy2 = self.getPolicyId(policy2) if policy2 is not None else None
+		return self.execInsertStatement('INSERT INTO Contradiction (contradictionId, appId, policyId1, policyId2) VALUES (?,?,?,?)', (contradictionId, appId, policy1, policy2))
+
+
+

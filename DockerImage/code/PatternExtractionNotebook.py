@@ -21,7 +21,7 @@ import ExclusionDetector as eh
 from networkx.readwrite import json_graph
 import time
 
-nlp = spacy.load('NlpFinalModel')
+nlp = spacy.load('/ext/NlpFinalModel')
 
 TRAINING_DATA = [
 u'We may give your personal information to advertisers',
@@ -1164,7 +1164,6 @@ class PolicyTransformer:
 			return agent[1].lemma_ if agent[1].lemma_ != '-PRON-' else agent[1].text.lower()
 			#return agent[1] if type(agent[1]) == unicode else agent[1].text.lower() #This needs to be the lemma unless -PRON-
 
-		#FIXME Be smarter about this and if same sentence claims "not collect or share X", do not assume first party collect!!!
 
 		def handleShareVerb(pstatement, actionLemma, simplifiedStatements):
 			agents = [ getAgentText(a) for a in pstatement['agent'] ]

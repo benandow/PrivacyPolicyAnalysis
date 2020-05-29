@@ -8,7 +8,10 @@ import pickle
 import networkx as nx
 import pandas as pd
 import csv
+import sqlite3
+import sys
 output_dir = "/ext/combined_tables"
+
 
 
 # In[2]:
@@ -76,7 +79,7 @@ contradictionMap = {
 	9  : "C5", 10 : "N4", 11 : "C8", 12 : "C9", 13 : "C10", 14 : "C11", 15 : "C12",
 }
 
-consistencyDataCsv = os.path.join(output_dir, "ConsistencyData.csv")
+consistencyDataCsv = os.path.join(output_dir, "ConsistencyData_wo_samesencontr.csv")
 conDataDf = pd.read_csv(consistencyDataCsv,
 			usecols=["cdid", "consistId", "policyStatement", "contradictingStatement", "contradictionNum"],
 			dtype = {
@@ -95,7 +98,7 @@ conDataDf[["contradictingStatement"]] = conDataDf[["contradictingStatement"]].ap
 
 # In[3]:
 
-
+#Heuristic to remove broad info mentions...
 corefCheck = re.compile(r"""\b(this|that|these|those|such)\s((type(s)?|kind(s)|categor(ies|y))\sof\s)?(request(ed)?\s)?(personal|personally(\s|\-)identifiable)?(information|data|content|datum|detail(s)?)\b""", re.IGNORECASE)
 
 totalExclude = 0
@@ -112,7 +115,6 @@ policySentencesDf.to_csv("PolicySentences_w_shouldIgnore.csv", sep=str(','), enc
 # In[4]:
 
 
-#TODO calculate how many results that we just caused to be reclassified as "omitted"
 psRemovedDf = policySentencesDf.loc[ policySentencesDf["shouldIgnore"] == True ]
 potImpactConsistIds = set()
 #Get keys of potential rows impacted...
@@ -130,7 +132,7 @@ for _,sid, sText, policyId, appId,_ in psRemovedDf.itertuples():
 # In[5]:
 
 
-for _,consistId, flowId, appId, isConsistent in conResDf.itertuples():
+for _,consistId, flowId, appId, _ in conResDf.itertuples():
 	# Get all policy statements that either justified or did not justify beforehand...
 	cdata = conDataDf.loc[ conDataDf["consistId"] == consistId ]
 	# Get all the unignored policy statements
@@ -157,8 +159,8 @@ for _,consistId, flowId, appId, isConsistent in conResDf.itertuples():
 # In[6]:
 
 
-dataOnt = pickle.load(open('data_ontology_graph_policheck.pickle', 'rb'))
-entOnt = pickle.load(open('entity_ontology_graph_policheck.pickle', 'rb'))
+dataOnt = pickle.load(open('data_ontology.pickle', 'rb'))
+entOnt = pickle.load(open('entity_ontology.pickle', 'rb'))
 
 def getDistanceBetweenNodes(flowNode, policyNode, ont):
 	return len(nx.shortest_path(ont, source=policyNode, target=flowNode)) - 1
@@ -189,14 +191,13 @@ def filteredAppend(PF, p1, pEntity, pSentiment, pData, cType, cPol):
 			return#Again, first party should not be "anyone"
 	PF.append((p1, pEntity, pSentiment, pData, cType, cPol))
 
-#TODO do not add first party if "anyone"...
-def getPolicyStatementTypes(cdata, flowEntity):
+def getPolicyStatementTypes(xdata, flowEntity):
 	PFP = []#Positive
 	PFN = []#Negative
 	PN = []#Narrowing
 	PC = []#Contradictions
 
-	for index,_, _, p1, c1,ctype in cdata.itertuples():
+	for index,_, _, p1, c1,ctype in xdata.itertuples():
 		pEntity,pSentiment,pData = resolvePolicyStatement(p1)
 		cEntity,cSentiment,cData = resolvePolicyStatement(c1)
 
@@ -262,10 +263,18 @@ writeCsvHeader(csvfile)
 
 finImpactCoref = set()
 
-for _,consistId, flowId, appId, isConsistent in conResDf.itertuples():
+for _,consistId, flowId, appId, _ in conResDf.itertuples():
 	_,flowEntity,flowData = dataflowDf.loc[ dataflowDf["flowId"] == flowId ].values[0]
 	cdata = conDataDf.loc[ conDataDf["consistId"] == consistId ]
 	PFp, PFn, PN, PC = getPolicyStatementTypes(cdata, flowEntity)
+
+	#If PN == 0 and PC == 0 and PFp == PFn
+	if len(PN) == 0 and len(PC) == 0 and len(PFp) > 0 and len(PFn) > 0: #We had a same sentence contradiction that we removed, let's find the closest match and wipe the rest...
+		_, _, pid, policyEntity, policyAction, policyData,_,_ = resolveNearestPolicy(flowEntity, flowData, PFn + PFp)
+		if policyAction == 'collect':
+			PFn = []
+		else:
+			PFp = []
 
 	if len(PFp) == 0 and len(PFn) == 0:
 		if consistId in potImpactConsistIds:
@@ -309,27 +318,8 @@ for _,consistId, flowId, appId, isConsistent in conResDf.itertuples():
 outputfile.close()
 
 
-# In[7]:
-
-
 #print("Number Of rows impacted by coreference resolution: {}".format(len(finImpactCoref)))
 print("Done")
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
-
-
-
-
-# In[ ]:
-
 
 
 
