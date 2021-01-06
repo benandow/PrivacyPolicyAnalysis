@@ -68,7 +68,8 @@ def getDirectObjects(verb):
 	if dobj is not None:
 		conjs = []
 		for d in dobj:
-			getConjunctions(d, conjs)
+			# getConjunctions(d, conjs)
+			conjs.extend(getConjunctions(d))
 		for c in conjs:			
 			dobj.append(c)
 	return dobj
