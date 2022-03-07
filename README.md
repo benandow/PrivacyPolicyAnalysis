@@ -9,7 +9,7 @@ This repository hosts the source code for both the PolicyLint and PoliCheck tool
 
 * Insert a CSV representing the data flows into /ext/data/flows.csv. An example file is included from the data used within paper (./ext/data/flows.csv).
 
-* Download the pretrained NLP model from https://drive.google.com/file/d/1yMB3TJt8oZX3-GHm9oB\_eKU7oeJXfLbA/view?usp=sharing and place it in ./ext/NlpFinalModel
+* Download the pretrained NLP model from https://drive.google.com/file/d/1yMB3TJt8oZX3-GHm9oB_eKU7oeJXfLbA/view?usp=sharing and place it in ./ext/NlpFinalModel
 
 * Modify ./ext/run\_config to either specify "policylint" or "policheck" to set which ontologies the tool will leverage.
 
